@@ -19,12 +19,13 @@ type Server struct {
 	MqUser             string
 	MqPass             string
 	EventCallbackMap   map[string]func(map[string]interface{}, amqp.Delivery) bool
-	RpcCallbackMap     map[string]func(map[string]interface{}, amqp.Delivery) (interface{})
+	RpcCallbackMap     map[string]func(map[string]interface{}, amqp.Delivery) interface{}
 	RpcTimeout         time.Duration
 
 	conn               *amqp.Connection
 	mqch               *amqp.Channel
 	cli                <-chan amqp.Delivery
+	cliResMap          map[string]chan map[string]interface{}
 }
 
 var err error
@@ -79,6 +80,7 @@ func (s *Server) Serve() {
 		log.Printf("[Synapse Info] Event Sender Ready")
 	}
 	if !s.DisableRpcClient {
+		s.cliResMap = make(map[string]chan map[string]interface{})
 		s.rpcCallbackQueue()
 		go s.rpcCallbackQueueListen()
 		if s.RpcTimeout == 0 {
