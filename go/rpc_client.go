@@ -116,7 +116,7 @@ func (s *Server) SendRpc(appName, action string, params map[string]interface{}) 
 		return ret
 	case <-time.After(time.Second * s.RpcTimeout):
 		log.Printf("[Synapse Error] %s: %s \n", "Rpc Request Not Success", "Request Timeout")
-		return map[string]interface{}{"Error":"Rpc Request Not Success: Request Timeout"}
+		return map[string]interface{}{"code":504, "message":"Rpc Request Not Success: Request Timeout"}
 	}
 
 }
