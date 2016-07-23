@@ -19,6 +19,9 @@ class Synapse(EventServer, EventClient, RpcServer, RpcClient):
             self.log("[Synapse Warn] System Run Mode: Debug")
         else:
             self.log("[Synapse Info] System Run Mode: Production")
+        if self.app_id == "":
+            self.app_id = self.random_str()
+            self.log("[Synapse Info] System App Id: %s" % self.app_id)
         self.create_connection()
         self.create_channel()
         self.check_exchange()
@@ -32,7 +35,9 @@ class Synapse(EventServer, EventClient, RpcServer, RpcClient):
             threading._start_new_thread(self.rpc_server_serve, ())
         if self.disable_event_client:
             self.log("[Synapse Warn] Event Sender Disabled: disable_event_client set True")
+        else:
+            self.log("[Synapse Info] Event Sender Ready")
         if self.disable_rpc_client:
             self.log("[Synapse Warn] Rpc Sender Disabled: disable_rpc_client set True")
-            # else:
-            #     self.rpc_client_queue()
+        else:
+            self.listen_rpc_cli()

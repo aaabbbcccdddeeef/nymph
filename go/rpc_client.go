@@ -36,33 +36,32 @@ func (s *Server) rpcCallbackQueueListen() {
 	s.cli, err = s.mqch.Consume(
 		s.SysName + "_rpc_cli_" + s.AppName + "_" + s.AppId, // queue
 		"", // consumer
-		false, // auto-ack
+		true, // auto-ack
 		false, // exclusive
 		false, // no-local
 		false, // no-wait
 		nil, // args
 	)
 	s.failOnError(err, "Failed to register Rpc Callback consumer")
-	err = s.mqch.Qos(
-		1, // prefetch count
-		0, // prefetch size
-		false, // global
-	)
-	s.failOnError(err, "Failed to set Rpc Queue QoS")
-	log.Printf("[Synapse Info] Rpc Client Handler Listening")
+	//err = s.mqch.Qos(
+	//	1, // prefetch count
+	//	0, // prefetch size
+	//	false, // global
+	//)
+	//s.failOnError(err, "Failed to set Rpc Queue QoS")
+	//log.Printf("[Synapse Info] Rpc Client Handler Listening")
 }
 
 /**
 RPC Clenit
  */
-func (s *Server) rpcClient(data map[string]interface{}, result chan map[string]interface{}) {
+func (s *Server) rpcClient(data map[string]interface{}, corrId string) {
 	query := simplejson.New();
 	query.Set("from", s.AppName + "." + s.AppId)
 	query.Set("to", data["appName"].(string))
 	query.Set("action", data["action"])
 	query.Set("params", data["params"])
 	queryJson, _ := query.MarshalJSON()
-	corrId := s.randomString(20)
 	err = s.mqch.Publish(
 		s.SysName, // exchange
 		"rpc.srv." + data["appName"].(string), // routing key
@@ -79,18 +78,15 @@ func (s *Server) rpcClient(data map[string]interface{}, result chan map[string]i
 		log.Printf("[Synapse Debug] Publish Rpc Request: %s", queryJson)
 	}
 	for d := range s.cli {
-		if corrId == d.CorrelationId {
+		_, haveKey := s.cliResMap[d.CorrelationId]
+		if haveKey {
 			query, _ := simplejson.NewJson(d.Body)
-			action := query.Get("action").MustString()
 			params := query.Get("params").MustMap()
-			if action == "reply-" + data["action"].(string) {
-				if s.Debug {
-					logData, _ := query.MarshalJSON()
-					log.Printf("[Synapse Debug] Receive Rpc Callback: %s", logData)
-				}
-				d.Ack(false)
-				result <- params
+			if s.Debug {
+				logData, _ := query.MarshalJSON()
+				log.Printf("[Synapse Debug] Receive Rpc Callback: %s", logData)
 			}
+			s.cliResMap[d.CorrelationId] <- params
 			break
 		}
 	}
@@ -109,12 +105,15 @@ func (s *Server) SendRpc(appName, action string, params map[string]interface{}) 
 		"action": action,
 		"params": params,
 	}
-	result := make(chan map[string]interface{})
-	go s.rpcClient(data, result)
+	corrId := s.randomString(20)
+	s.cliResMap[corrId] = make(chan map[string]interface{})
+	go s.rpcClient(data, corrId)
 	select {
-	case ret := <-result:
+	case ret := <-s.cliResMap[corrId]:
+		delete(s.cliResMap, corrId)
 		return ret
 	case <-time.After(time.Second * s.RpcTimeout):
+		delete(s.cliResMap, corrId)
 		log.Printf("[Synapse Error] %s: %s \n", "Rpc Request Not Success", "Request Timeout")
 		return map[string]interface{}{"code":504, "message":"Rpc Request Not Success: Request Timeout"}
 	}
