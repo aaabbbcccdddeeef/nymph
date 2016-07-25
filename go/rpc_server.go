@@ -66,7 +66,7 @@ func (s *Server) rpcServer() {
 		if ok {
 			result = callback(params, d)
 		} else {
-			result = map[string]interface{}{"Error": "The Rpc Action Not Found"}
+			result = map[string]interface{}{"code":404, "message": "The Rpc Action Not Found"}
 		}
 		response := simplejson.New();
 		response.Set("from", s.AppName + "." + s.AppId)
