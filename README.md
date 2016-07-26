@@ -5,8 +5,10 @@
 可以使用 Submodule 的方式引用,但项目必须放到$GOPATH/src下,否则Golang无法识别vendor
 
 > git submodule add -b golang http://code.simcu.com/jumpserver/synapse.git vendor/jumpserver/synapse
-git submodule add https://github.com/bitly/go-simplejson vendor/github.com/bitly/go-simplejson
-git submodule add https://github.com/streadway/amqp vendor/github.com/streadway/amqp
+
+> git submodule add https://github.com/bitly/go-simplejson vendor/github.com/bitly/go-simplejson
+
+> git submodule add https://github.com/streadway/amqp vendor/github.com/streadway/amqp
 
 初始化方法:
 ```golang
