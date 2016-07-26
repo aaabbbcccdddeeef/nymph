@@ -4,6 +4,7 @@ import (
 	"github.com/streadway/amqp"
 	"log"
 	"github.com/bitly/go-simplejson"
+	"net/http"
 )
 
 /**
@@ -37,6 +38,16 @@ func (s *Server) rpcQueue() {
 }
 
 /**
+创建结果返回json包源
+ */
+func (s *Server) makeRet(code int) map[string]interface{} {
+	return map[string]interface{}{
+		"code": code,
+		"message": http.StatusText(code),
+	}
+}
+
+/**
 创建RPC监听
 callback回调为监听到RPC请求后的处理函数
  */
@@ -61,12 +72,22 @@ func (s *Server) rpcServer() {
 			logData, _ := query.MarshalJSON()
 			log.Printf("[Synapse Debug] Receive Rpc Request: %s", logData)
 		}
-		var result interface{}
+		var resultSource map[string]interface{}
+		result := s.makeRet(200)
 		callback, ok := s.RpcCallbackMap[action]
 		if ok {
-			result = callback(params, d)
+			resultSource = callback(params, d)
+
 		} else {
-			result = map[string]interface{}{"code":404, "message": "The Rpc Action Not Found"}
+			resultSource = map[string]interface{}{"code":404, "message": "The Rpc Action Not Found"}
+		}
+		_, haveMessage := resultSource["message"]
+		_, haveCode := resultSource["code"]
+		if !haveMessage && haveCode {
+			resultSource["message"] = http.StatusText(resultSource["code"].(int))
+		}
+		for k, v := range resultSource {
+			result[k] = v
 		}
 		response := simplejson.New();
 		response.Set("from", s.AppName + "." + s.AppId)

@@ -19,7 +19,7 @@ type Server struct {
 	MqUser             string
 	MqPass             string
 	EventCallbackMap   map[string]func(map[string]interface{}, amqp.Delivery) bool
-	RpcCallbackMap     map[string]func(map[string]interface{}, amqp.Delivery) interface{}
+	RpcCallbackMap     map[string]func(map[string]interface{}, amqp.Delivery) map[string]interface{}
 	RpcTimeout         time.Duration
 
 	conn               *amqp.Connection
