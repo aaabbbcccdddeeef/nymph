@@ -2,13 +2,14 @@
 
 ### 此为系统核心交互组件,包含了事件和RPC系统
 
-可以使用 Submodule的方式引用
+可以使用 Submodule 的方式引用,但项目必须放到$GOPATH/src下,否则Golang无法识别vendor
 
 > git submodule add -b golang http://code.simcu.com/jumpserver/synapse.git vendor/jumpserver/synapse
+> git submodule add https://github.com/bitly/go-simplejson vendor/github.com/bitly/go-simplejson
+> git submodule add https://github.com/streadway/amqp vendor/github.com/streadway/amqp
 
 初始化方法:
 ```golang
-
     //创建一个服务实例
     server := synapse.New()
 	//设置rpc调用方法(不设置系统将不会启动RPC服务器)
