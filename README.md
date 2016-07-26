@@ -50,6 +50,22 @@
 	server.Serve()
 ```
 
+事件处理方法类型:
+```golang
+//第一个参数:客户端请求数据
+//第二个参数:RPC传输的数据包,一般情况不使用
+//需要返回 true表示处理完成,返回false表示处理失败
+func(map[string]interface{}, amqp.Delivery) bool
+```
+
+RPC服务方法类型:
+```golang
+//第一个参数:客户端请求数据
+//第二个参数:RPC传输的数据包,一般情况不使用
+//需要返回: map[string]interface{}
+func(map[string]interface{}, amqp.Delivery) map[string]interface{}
+```
+
 发送RPC请求:
 ```golang
 //第一个参数为要调用组件的名称
