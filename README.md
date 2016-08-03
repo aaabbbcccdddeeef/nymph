@@ -66,6 +66,7 @@ RPC服务方法类型:
 //第一个参数:客户端请求数据
 //第二个参数:RPC传输的数据包,一般情况不使用
 //需要返回: map[string]interface{}
+//返回值中,包含两个可选参数 code 和 message 如果不填写,系统将会默认使用 code:200 和 message: OK, 可以手动指定
 func(map[string]interface{}, amqp.Delivery) map[string]interface{}
 ```
 
