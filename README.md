@@ -2,13 +2,13 @@
 
 ### 此为系统核心交互组件,包含了事件和RPC系统
 
-可以使用 Submodule 的方式引用,但项目必须放到$GOPATH/src下,否则Golang无法识别vendor
+安装方式:
 
-> git submodule add -b golang http://code.simcu.com/jumpserver/synapse.git vendor/jumpserver/synapse
+> go get code.simcu.com/jumpserver/synapse
 
-> git submodule add https://github.com/bitly/go-simplejson vendor/github.com/bitly/go-simplejson
+> go get github.com/bitly/go-simplejson
 
-> git submodule add https://github.com/streadway/amqp vendor/github.com/streadway/amqp
+> go get github.com/streadway/amqp
 
 初始化方法:
 ```golang
@@ -43,6 +43,8 @@
 	server.MqUser = common.Config["mq_user"]
 	// RabbitMQ 服务器密码
 	server.MqPass = common.Config["mq_pass"]
+	//组件事件和RPC最大并发请求数 (不设置默认为 100)
+	server.MaxProcessNum = 100
 	//是否禁用发送事件的机能 (默认允许发送事件)
 	server.DisableEventClient = true
 	//是否禁用RPC客户端功能 (默认可以进行RPC请求)

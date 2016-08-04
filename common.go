@@ -18,6 +18,7 @@ type Server struct {
 	MqPort             string
 	MqUser             string
 	MqPass             string
+	MaxProcessNum      int
 	EventCallbackMap   map[string]func(map[string]interface{}, amqp.Delivery) bool
 	RpcCallbackMap     map[string]func(map[string]interface{}, amqp.Delivery) map[string]interface{}
 	RpcTimeout         time.Duration
@@ -44,17 +45,21 @@ func (s *Server) Serve() {
 	if s.AppName == "" || s.SysName == "" {
 		log.Fatalf("[Synapse Error] Must Set SysName and AppName system exit .")
 	} else {
-		log.Print("[Synapse Info] System App Name: " + s.SysName)
-		log.Print("[Synapse Info] System App Name: " + s.AppName)
+		log.Print("[Synapse Info] System Name: ", s.SysName)
+		log.Print("[Synapse Info] App Name: ", s.AppName)
 	}
+	if s.MaxProcessNum == 0 {
+		s.MaxProcessNum = 100
+	}
+	log.Print("[Synapse Info] App MaxProcessNum: ", s.MaxProcessNum)
 	if s.AppId == "" {
 		s.AppId = s.randomString(20)
 	}
-	log.Print("[Synapse Info] System App ID: " + s.AppId)
+	log.Print("[Synapse Info] App ID: ", s.AppId)
 	if s.Debug {
-		log.Print("[Synapse Warn] System Run Mode: Debug")
+		log.Print("[Synapse Warn] App Run Mode: Debug")
 	} else {
-		log.Print("[Synapse Info] System Run Mode: Production")
+		log.Print("[Synapse Info] App Run Mode: Production")
 	}
 	goto START
 	START:
@@ -110,6 +115,12 @@ func (s *Server) createConnection() {
 func (s *Server) createChannel() {
 	s.mqch, err = s.conn.Channel()
 	s.failOnError(err, "Failed to open a channel")
+	err = s.mqch.Qos(
+		s.MaxProcessNum, // prefetch count
+		0, // prefetch size
+		false, // global
+	)
+	s.failOnError(err, "Failed to set Rpc Queue QoS")
 	log.Print("[Synapse Info] Rabbit MQ Channel Created.")
 }
 

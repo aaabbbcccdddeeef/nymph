@@ -4,6 +4,7 @@ import (
 	"log"
 	"github.com/bitly/go-simplejson"
 	"strings"
+	"github.com/streadway/amqp"
 )
 
 /**
@@ -49,20 +50,27 @@ func (s *Server) eventServer() {
 	s.failOnError(err, "Failed to register event consumer")
 	log.Printf("[Synapse Info] Event Server Handler Listening")
 	for d := range msgs {
-		query, _ := simplejson.NewJson(d.Body)
-		params := query.Get("params").MustMap()
-		if query.Get("to").MustString() == "event" {
-			if s.Debug {
-				logData, _ := query.MarshalJSON()
-				log.Printf("[Synapse Debug] Receive Event: %s.%s %s", query.Get("from").MustString(), query.Get("action").MustString(), logData)
-			}
-			log.Print(strings.Split(query.Get("from").MustString(), ".")[0] + "." + query.Get("action").MustString())
-			callback, ok := s.EventCallbackMap[strings.Split(query.Get("from").MustString(), ".")[0] + "." + query.Get("action").MustString()]
-			if (ok && callback(params, d)) {
-				d.Ack(false)
-			} else {
-				d.Reject(true)
-			}
+		go s.eventHandler(d)
+	}
+}
+
+/**
+事件处理器
+ */
+func (s *Server) eventHandler(d amqp.Delivery) {
+	query, _ := simplejson.NewJson(d.Body)
+	params := query.Get("params").MustMap()
+	if query.Get("to").MustString() == "event" {
+		if s.Debug {
+			logData, _ := query.MarshalJSON()
+			log.Printf("[Synapse Debug] Receive Event: %s.%s %s", query.Get("from").MustString(), query.Get("action").MustString(), logData)
+		}
+		log.Print(strings.Split(query.Get("from").MustString(), ".")[0] + "." + query.Get("action").MustString())
+		callback, ok := s.EventCallbackMap[strings.Split(query.Get("from").MustString(), ".")[0] + "." + query.Get("action").MustString()]
+		if (ok && callback(params, d)) {
+			d.Ack(false)
+		} else {
+			d.Reject(true)
 		}
 	}
 }
