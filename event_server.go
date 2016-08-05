@@ -48,7 +48,7 @@ func (s *Server) eventServer() {
 		nil, // args
 	)
 	s.failOnError(err, "Failed to register event consumer")
-	log.Printf("[Synapse Info] Event Server Handler Listening")
+	log.Print("[Synapse Info] Event Server Handler Listening")
 	for d := range msgs {
 		go s.eventHandler(d)
 	}

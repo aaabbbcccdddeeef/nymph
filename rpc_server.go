@@ -56,7 +56,7 @@ func (s *Server) rpcServer() {
 		nil, // args
 	)
 	s.failOnError(err, "Failed to register rpcServer consumer")
-	log.Printf("[Synapse Info] Rpc Server Handler Listening")
+	log.Print("[Synapse Info] Rpc Server Handler Listening")
 	for d := range msgs {
 		go s.rpcHandler(d)
 	}

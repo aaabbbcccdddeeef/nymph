@@ -5,6 +5,8 @@ import (
 	"log"
 	"time"
 	"math/rand"
+	"runtime"
+	"reflect"
 )
 
 type Server struct {
@@ -43,7 +45,7 @@ func New() *Server {
  */
 func (s *Server) Serve() {
 	if s.AppName == "" || s.SysName == "" {
-		log.Fatalf("[Synapse Error] Must Set SysName and AppName system exit .")
+		log.Fatal("[Synapse Error] Must Set SysName and AppName system exit .")
 	} else {
 		log.Print("[Synapse Info] System Name: ", s.SysName)
 		log.Print("[Synapse Info] App Name: ", s.AppName)
@@ -71,18 +73,24 @@ func (s *Server) Serve() {
 	s.checkAndCreateExchange()
 	if s.EventCallback != nil {
 		go s.eventServer()
+		for k, v := range s.EventCallback {
+			log.Printf("[Synapse Info] *EVT: %s -> %s", k, runtime.FuncForPC(reflect.ValueOf(v).Pointer()).Name())
+		}
 	} else {
-		log.Printf("[Synapse Warn] Event Handler Disabled: EventCallbackMap not set")
+		log.Print("[Synapse Warn] Event Handler Disabled: EventCallback not set")
 	}
 	if s.RpcCallback != nil {
 		go s.rpcServer()
+		for k, v := range s.RpcCallback {
+			log.Printf("[Synapse Info] *RPC: %s -> %s", k, runtime.FuncForPC(reflect.ValueOf(v).Pointer()).Name())
+		}
 	} else {
-		log.Printf("[Synapse Warn] Rpc Handler Disabled: RpcCallbackMap not set")
+		log.Print("[Synapse Warn] Rpc Handler Disabled: RpcCallback not set")
 	}
 	if s.DisableEventClient {
-		log.Printf("[Synapse Warn] Event Sender Disabled: DisableEventClient set true")
+		log.Print("[Synapse Warn] Event Sender Disabled: DisableEventClient set true")
 	} else {
-		log.Printf("[Synapse Info] Event Sender Ready")
+		log.Print("[Synapse Info] Event Sender Ready")
 	}
 	if !s.DisableRpcClient {
 		s.cliResMap = make(map[string]chan map[string]interface{})
@@ -92,7 +100,7 @@ func (s *Server) Serve() {
 			s.RpcTimeout = 3
 		}
 	} else {
-		log.Printf("[Synapse Warn] Rpc Sender Disabled: DisableRpcClient set true")
+		log.Print("[Synapse Warn] Rpc Sender Disabled: DisableRpcClient set true")
 	}
 	var closedConnChannel = s.conn.NotifyClose(make(chan *amqp.Error))
 	log.Printf("[Synapse Error] Connection Error: %s , reconnect after 5 sec", <-closedConnChannel)
