@@ -14,7 +14,7 @@ func (s *Server) rpcCallbackQueue() {
 		s.SysName + "_rpc_cli_" + s.AppName + "_" + s.AppId, // name
 		true, // durable
 		true, // delete when usused
-		false, // exclusive
+		true, // exclusive
 		false, // no-wait
 		nil, // arguments
 	)
@@ -35,21 +35,14 @@ func (s *Server) rpcCallbackQueue() {
 func (s *Server) rpcCallbackQueueListen() {
 	s.cli, err = s.mqch.Consume(
 		s.SysName + "_rpc_cli_" + s.AppName + "_" + s.AppId, // queue
-		"", // consumer
+		s.SysName + "." + s.AppName + ".rpc.cli." + s.AppId, // consumer
 		true, // auto-ack
-		false, // exclusive
+		true, // exclusive
 		false, // no-local
 		false, // no-wait
 		nil, // args
 	)
 	s.failOnError(err, "Failed to register Rpc Callback consumer")
-	//err = s.mqch.Qos(
-	//	1, // prefetch count
-	//	0, // prefetch size
-	//	false, // global
-	//)
-	//s.failOnError(err, "Failed to set Rpc Queue QoS")
-	//log.Printf("[Synapse Info] Rpc Client Handler Listening")
 }
 
 /**

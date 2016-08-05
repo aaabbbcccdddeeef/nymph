@@ -48,7 +48,7 @@ func (s *Server) rpcServer() {
 	s.rpcQueue()
 	msgs, err := s.mqch.Consume(
 		s.SysName + "_rpc_srv_" + s.AppName, // queue
-		"", // consumer
+		s.SysName + "." + s.AppName + ".rpc.srv." + s.AppId, // consumer
 		false, // auto-ack
 		false, // exclusive
 		false, // no-local

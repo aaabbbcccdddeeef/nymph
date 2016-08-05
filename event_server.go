@@ -40,7 +40,7 @@ func (s *Server) eventServer() {
 	s.eventQueue()
 	msgs, err := s.mqch.Consume(
 		s.SysName + "_event_" + s.AppName, // queue
-		"", // consumer
+		s.SysName + "." + s.AppName + ".event." + s.AppId, // consumer
 		false, // auto-ack
 		false, // exclusive
 		false, // no-local
