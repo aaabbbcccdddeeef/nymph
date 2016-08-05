@@ -75,7 +75,7 @@ func (s *Server) rpcHandler(d amqp.Delivery) {
 	}
 	var resultSource map[string]interface{}
 	result := s.makeRet(200)
-	callback, ok := s.RpcCallbackMap[action]
+	callback, ok := s.RpcCallback[action]
 	if ok {
 		resultSource = callback(params, d)
 

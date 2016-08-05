@@ -21,7 +21,7 @@ func (s *Server) eventQueue() {
 	)
 	s.failOnError(err, "Failed to declare event queue")
 
-	for k, _ := range s.EventCallbackMap {
+	for k, _ := range s.EventCallback {
 		err = s.mqch.QueueBind(
 			q.Name, // queue name
 			"event." + k, // routing key
@@ -66,7 +66,7 @@ func (s *Server) eventHandler(d amqp.Delivery) {
 			log.Printf("[Synapse Debug] Receive Event: %s.%s %s", query.Get("from").MustString(), query.Get("action").MustString(), logData)
 		}
 		log.Print(strings.Split(query.Get("from").MustString(), ".")[0] + "." + query.Get("action").MustString())
-		callback, ok := s.EventCallbackMap[strings.Split(query.Get("from").MustString(), ".")[0] + "." + query.Get("action").MustString()]
+		callback, ok := s.EventCallback[strings.Split(query.Get("from").MustString(), ".")[0] + "." + query.Get("action").MustString()]
 		if (ok && callback(params, d)) {
 			d.Ack(false)
 		} else {

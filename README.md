@@ -15,7 +15,7 @@
     //创建一个服务实例
     server := synapse.New()
 	//设置rpc调用方法(不设置系统将不会启动RPC服务器)
-	server.RpcCallbackMap = map[string]func(map[string]interface{}, amqp.Delivery) map[string]interface {}{
+	server.RpcCallback = map[string]func(map[string]interface{}, amqp.Delivery) map[string]interface {}{
 		"echo.get": echoHello,
 		"echo.post": echoHello,
 		"echo.put": echoHello,
@@ -24,7 +24,7 @@
 	}
 
 	//设置事件回调方法(不设置系统将不会启动事件监听器)
-	server.EventCallbackMap = map[string]func(map[string]interface{}, amqp.Delivery) bool{
+	server.EventCallback = map[string]func(map[string]interface{}, amqp.Delivery) bool{
 		"icarus.test": test,
 		"pytest.test": test,
 	}
@@ -44,7 +44,7 @@
 	// RabbitMQ 服务器密码
 	server.MqPass = common.Config["mq_pass"]
 	//组件事件和RPC最大并发请求数 (不设置默认为 100)
-	server.MaxProcessNum = 100
+	server.ProcessNum = 100
 	//是否禁用发送事件的机能 (默认允许发送事件)
 	server.DisableEventClient = true
 	//是否禁用RPC客户端功能 (默认可以进行RPC请求)

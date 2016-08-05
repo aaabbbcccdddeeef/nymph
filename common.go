@@ -18,9 +18,9 @@ type Server struct {
 	MqPort             string
 	MqUser             string
 	MqPass             string
-	MaxProcessNum      int
-	EventCallbackMap   map[string]func(map[string]interface{}, amqp.Delivery) bool
-	RpcCallbackMap     map[string]func(map[string]interface{}, amqp.Delivery) map[string]interface{}
+	ProcessNum         int
+	EventCallback      map[string]func(map[string]interface{}, amqp.Delivery) bool
+	RpcCallback        map[string]func(map[string]interface{}, amqp.Delivery) map[string]interface{}
 	RpcTimeout         time.Duration
 
 	conn               *amqp.Connection
@@ -48,10 +48,10 @@ func (s *Server) Serve() {
 		log.Print("[Synapse Info] System Name: ", s.SysName)
 		log.Print("[Synapse Info] App Name: ", s.AppName)
 	}
-	if s.MaxProcessNum == 0 {
-		s.MaxProcessNum = 100
+	if s.ProcessNum == 0 {
+		s.ProcessNum = 100
 	}
-	log.Print("[Synapse Info] App MaxProcessNum: ", s.MaxProcessNum)
+	log.Print("[Synapse Info] App MaxProcessNum: ", s.ProcessNum)
 	if s.AppId == "" {
 		s.AppId = s.randomString(20)
 	}
@@ -69,12 +69,12 @@ func (s *Server) Serve() {
 	defer s.mqch.Close()
 	time.Sleep(time.Second * 2)
 	s.checkAndCreateExchange()
-	if s.EventCallbackMap != nil {
+	if s.EventCallback != nil {
 		go s.eventServer()
 	} else {
 		log.Printf("[Synapse Warn] Event Handler Disabled: EventCallbackMap not set")
 	}
-	if s.RpcCallbackMap != nil {
+	if s.RpcCallback != nil {
 		go s.rpcServer()
 	} else {
 		log.Printf("[Synapse Warn] Rpc Handler Disabled: RpcCallbackMap not set")
@@ -116,7 +116,7 @@ func (s *Server) createChannel() {
 	s.mqch, err = s.conn.Channel()
 	s.failOnError(err, "Failed to open a channel")
 	err = s.mqch.Qos(
-		s.MaxProcessNum, // prefetch count
+		s.ProcessNum, // prefetch count
 		0, // prefetch size
 		false, // global
 	)
