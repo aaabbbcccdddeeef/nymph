@@ -74,12 +74,11 @@ func (s *Server) rpcClient(data map[string]interface{}, corrId string) {
 		_, haveKey := s.cliResMap[d.CorrelationId]
 		if haveKey {
 			query, _ := simplejson.NewJson(d.Body)
-			params := query.Get("params").MustMap()
 			if s.Debug {
 				logData, _ := query.MarshalJSON()
 				log.Printf("[Synapse Debug] Receive Rpc Callback: %s", logData)
 			}
-			s.cliResMap[d.CorrelationId] <- params
+			s.cliResMap[d.CorrelationId] <- query.Get("params")
 			break
 		}
 	}
@@ -88,10 +87,13 @@ func (s *Server) rpcClient(data map[string]interface{}, corrId string) {
 /**
 发起 RPC请求
  */
-func (s *Server) SendRpc(appName, action string, params map[string]interface{}) map[string]interface{} {
+func (s *Server) SendRpc(appName, action string, params map[string]interface{}) *simplejson.Json {
 	if s.DisableRpcClient {
 		log.Printf("[Synapse Error] %s: %s \n", "Rpc Request Not Send", "DisableRpcClient set true")
-		return map[string]interface{}{"Error":"Rpc Request Not Send: DisableRpcClient set true"}
+		ret := simplejson.New();
+		ret.Set("code", 404)
+		ret.Set("message", "Rpc Request Not Send: DisableRpcClient set true")
+		return ret
 	}
 	data := map[string]interface{}{
 		"appName": appName,
@@ -99,7 +101,7 @@ func (s *Server) SendRpc(appName, action string, params map[string]interface{}) 
 		"params": params,
 	}
 	corrId := s.randomString(20)
-	s.cliResMap[corrId] = make(chan map[string]interface{})
+	s.cliResMap[corrId] = make(chan *simplejson.Json)
 	go s.rpcClient(data, corrId)
 	select {
 	case ret := <-s.cliResMap[corrId]:
@@ -108,7 +110,10 @@ func (s *Server) SendRpc(appName, action string, params map[string]interface{}) 
 	case <-time.After(time.Second * s.RpcTimeout):
 		delete(s.cliResMap, corrId)
 		log.Printf("[Synapse Error] %s: %s \n", "Rpc Request Not Success", "Request Timeout")
-		return map[string]interface{}{"code":504, "message":"Rpc Request Not Success: Request Timeout"}
+		ret := simplejson.New();
+		ret.Set("code", 504)
+		ret.Set("message", "Rpc Request Not Success: Request Timeout")
+		return ret
 	}
 
 }

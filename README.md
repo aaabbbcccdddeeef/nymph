@@ -77,6 +77,7 @@ func(*simplejson.Json, amqp.Delivery) map[string]interface{}
 //第一个参数为要调用组件的名称
 //第二个参数为要调用组件的方法
 //第三个参数为map[string]interface{} 要发送的数据
+//返回 *simplejson.Json
 
 synapse.SendRpc("pytest","pyt", map[string]interface{}{"pass":1213123,"time":time.Now().String()})
 ```

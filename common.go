@@ -29,7 +29,7 @@ type Server struct {
 	conn               *amqp.Connection
 	mqch               *amqp.Channel
 	cli                <-chan amqp.Delivery
-	cliResMap          map[string]chan map[string]interface{}
+	cliResMap          map[string]chan *simplejson.Json
 }
 
 var err error
@@ -94,7 +94,7 @@ func (s *Server) Serve() {
 		log.Print("[Synapse Info] Event Sender Ready")
 	}
 	if !s.DisableRpcClient {
-		s.cliResMap = make(map[string]chan map[string]interface{})
+		s.cliResMap = make(map[string]chan *simplejson.Json)
 		s.rpcCallbackQueue()
 		go s.rpcCallbackQueueListen()
 		if s.RpcTimeout == 0 {
