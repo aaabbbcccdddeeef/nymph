@@ -68,7 +68,7 @@ RPC请求处理器
 func (s *Server) rpcHandler(d amqp.Delivery) {
 	query, _ := simplejson.NewJson(d.Body)
 	action := query.Get("action").MustString()
-	params := query.Get("params").MustMap()
+	params := query.Get("params")
 	if s.Debug {
 		logData, _ := query.MarshalJSON()
 		log.Printf("[Synapse Debug] Receive Rpc Request: %s", logData)

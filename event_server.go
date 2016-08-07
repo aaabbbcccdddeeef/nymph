@@ -59,7 +59,7 @@ func (s *Server) eventServer() {
  */
 func (s *Server) eventHandler(d amqp.Delivery) {
 	query, _ := simplejson.NewJson(d.Body)
-	params := query.Get("params").MustMap()
+	params := query.Get("params")
 	if query.Get("to").MustString() == "event" {
 		if s.Debug {
 			logData, _ := query.MarshalJSON()

@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"runtime"
 	"reflect"
+	"github.com/bitly/go-simplejson"
 )
 
 type Server struct {
@@ -21,8 +22,8 @@ type Server struct {
 	MqUser             string
 	MqPass             string
 	ProcessNum         int
-	EventCallback      map[string]func(map[string]interface{}, amqp.Delivery) bool
-	RpcCallback        map[string]func(map[string]interface{}, amqp.Delivery) map[string]interface{}
+	EventCallback      map[string]func(*simplejson.Json, amqp.Delivery) bool
+	RpcCallback        map[string]func(*simplejson.Json, amqp.Delivery) map[string]interface{}
 	RpcTimeout         time.Duration
 
 	conn               *amqp.Connection

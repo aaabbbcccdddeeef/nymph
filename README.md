@@ -15,7 +15,7 @@
     //创建一个服务实例
     server := synapse.New()
 	//设置rpc调用方法(不设置系统将不会启动RPC服务器)
-	server.RpcCallback = map[string]func(map[string]interface{}, amqp.Delivery) map[string]interface {}{
+	server.RpcCallback = map[string]func(*simplejson.Json, amqp.Delivery) map[string]interface {}{
 		"echo.get": echoHello,
 		"echo.post": echoHello,
 		"echo.put": echoHello,
@@ -24,7 +24,7 @@
 	}
 
 	//设置事件回调方法(不设置系统将不会启动事件监听器)
-	server.EventCallback = map[string]func(map[string]interface{}, amqp.Delivery) bool{
+	server.EventCallback = map[string]func(*simplejson.Json, amqp.Delivery) bool{
 		"icarus.test": test,
 		"pytest.test": test,
 	}
@@ -60,7 +60,7 @@
 //第一个参数:客户端请求数据
 //第二个参数:RPC传输的数据包,一般情况不使用
 //需要返回 true表示处理完成,返回false表示处理失败
-func(map[string]interface{}, amqp.Delivery) bool
+func(*simplejson.Json, amqp.Delivery) bool
 ```
 
 RPC服务方法类型:
@@ -69,7 +69,7 @@ RPC服务方法类型:
 //第二个参数:RPC传输的数据包,一般情况不使用
 //需要返回: map[string]interface{}
 //返回值中,包含两个可选参数 code 和 message 如果不填写,系统将会默认使用 code:200 和 message: OK, 可以手动指定
-func(map[string]interface{}, amqp.Delivery) map[string]interface{}
+func(*simplejson.Json, amqp.Delivery) map[string]interface{}
 ```
 
 发送RPC请求:
