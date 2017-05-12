@@ -4,7 +4,7 @@
 
 安装方式:
 
-> go get code.simcu.com/synapse/nymph
+> go get github.com/synapse-rpc/nymph
 
 > go get github.com/bitly/go-simplejson
 
