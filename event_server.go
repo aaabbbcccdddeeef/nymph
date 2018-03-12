@@ -14,7 +14,7 @@ func (s *Server) eventQueue() {
 	q, err := s.mqch.QueueDeclare(
 		fmt.Sprintf("%s_event_%s", s.SysName, s.AppName), // name
 		true,                                             // durable
-		false,                                            // delete when usused
+		true,                                             // delete when usused
 		false,                                            // exclusive
 		false,                                            // no-wait
 		nil,                                              // arguments
