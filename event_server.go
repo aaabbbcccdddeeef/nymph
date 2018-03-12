@@ -12,7 +12,7 @@ import (
  */
 func (s *Server) eventQueue() {
 	q, err := s.mqch.QueueDeclare(
-		fmt.Sprintf("%s_event_%s", s.SysName, s.AppName), // name
+		fmt.Sprintf("%s_%s_event", s.SysName, s.AppName), // name
 		true,                                             // durable
 		true,                                             // delete when usused
 		false,                                            // exclusive
@@ -43,7 +43,7 @@ callback回调为监听到事件后的处理函数
 func (s *Server) eventServer() {
 	s.eventQueue()
 	msgs, err := s.mqch.Consume(
-		fmt.Sprintf("%s_event_%s", s.SysName, s.AppName),             // queue
+		fmt.Sprintf("%s_%s_event", s.SysName, s.AppName),             // queue
 		fmt.Sprintf("%s.%s.event.%s", s.SysName, s.AppName, s.AppId), // consumer
 		false,                                                        // auto-ack
 		false,                                                        // exclusive

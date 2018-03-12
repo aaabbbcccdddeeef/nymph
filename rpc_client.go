@@ -13,7 +13,7 @@ import (
  */
 func (s *Server) rpcCallbackQueue() {
 	q, err := s.mqch.QueueDeclare(
-		fmt.Sprintf("%s_client_%s_%s", s.SysName, s.AppName, s.AppId),
+		fmt.Sprintf("%s_%s_client_%s", s.SysName, s.AppName, s.AppId),
 		true,  // durable
 		true,  // delete when usused
 		false, // exclusive
@@ -39,7 +39,7 @@ func (s *Server) rpcCallbackQueue() {
  */
 func (s *Server) rpcCallbackQueueListen() {
 	s.cli, err = s.mqch.Consume(
-		fmt.Sprintf("%s_client_%s_%s", s.SysName, s.AppName, s.AppId), // queue
+		fmt.Sprintf("%s_%s_client_%s", s.SysName, s.AppName, s.AppId), // queue
 		fmt.Sprintf("client.%s.%s", s.AppName, s.AppId),               // consumer
 		true,                                                          // auto-ack
 		true,                                                          // exclusive
@@ -98,7 +98,7 @@ func (s *Server) SendRpc(appName, action string, params map[string]interface{}) 
 	if s.DisableRpcClient {
 		Log("Rpc Client Disabled: DisableRpcClient set true", LogError)
 		ret := simplejson.New()
-		ret.Set("rpc_error", "Rpc Client Disabled")
+		ret.Set("rpc_error", "rpc client disabled")
 		return ret
 	}
 	msgId := s.randomString(20)
@@ -111,7 +111,7 @@ func (s *Server) SendRpc(appName, action string, params map[string]interface{}) 
 	case <-time.After(time.Second * s.RpcTimeout):
 		delete(s.cliResMap, msgId)
 		ret := simplejson.New()
-		ret.Set("rpc_error", "Timeout")
+		ret.Set("rpc_error", "timeout")
 		return ret
 	}
 

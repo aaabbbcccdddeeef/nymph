@@ -12,7 +12,7 @@ import (
  */
 func (s *Server) rpcQueue() {
 	q, err := s.mqch.QueueDeclare(
-		fmt.Sprintf("%s_server_%s", s.SysName, s.AppName), // name
+		fmt.Sprintf("%s_%s_server", s.SysName, s.AppName), // name
 		true,                                              // durable
 		true,                                              // delete when usused
 		false,                                             // exclusive
@@ -41,7 +41,7 @@ callback回调为监听到RPC请求后的处理函数
 func (s *Server) rpcServer() {
 	s.rpcQueue()
 	msgs, err := s.mqch.Consume(
-		fmt.Sprintf("%s_server_%s", s.SysName, s.AppName), // queue
+		fmt.Sprintf("%s_%s_server", s.SysName, s.AppName), // queue
 		fmt.Sprintf("%s.%s.server.%s", s.SysName, s.AppName, s.AppId),
 		false, // auto-ack
 		false, // exclusive
@@ -67,28 +67,29 @@ func (s *Server) rpcHandler(d amqp.Delivery) {
 		Log(fmt.Sprintf("RPC Receive: (%s)%s->%s@%s %s", d.MessageId, d.ReplyTo, d.Type, s.AppName, logData), LogDebug)
 	}
 	callback, ok := s.RpcCallback[d.Type]
+	result, _ := json.Marshal(map[string]string{"rpc_error": "method not found"})
 	if ok {
-		result, _ := json.Marshal(callback(query, d))
-		reply := fmt.Sprintf("client.%s.%s", d.ReplyTo, d.AppId)
-		err = s.mqch.Publish(
-			s.SysName, // exchange
-			reply,     // routing key
-			false,     // mandatory
-			false,     // immediatec
-			amqp.Publishing{
-				AppId:         s.AppId,
-				MessageId:     s.randomString(20),
-				ReplyTo:       s.AppName,
-				Type:          d.Type,
-				CorrelationId: d.MessageId,
-				Body:          result,
-			})
-		if s.Debug {
-			Log(fmt.Sprintf("RPC Return: (%s)%s@%s->%s %s", d.MessageId, d.Type, s.AppName, d.ReplyTo, result), LogDebug)
-		}
-		if err != nil {
-			Log(fmt.Sprintf("Failed to reply Rpc Request: %s", err), LogError)
-		}
-		d.Ack(false)
+		result, _ = json.Marshal(callback(query, d))
 	}
+	reply := fmt.Sprintf("client.%s.%s", d.ReplyTo, d.AppId)
+	err = s.mqch.Publish(
+		s.SysName, // exchange
+		reply,     // routing key
+		false,     // mandatory
+		false,     // immediatec
+		amqp.Publishing{
+			AppId:         s.AppId,
+			MessageId:     s.randomString(20),
+			ReplyTo:       s.AppName,
+			Type:          d.Type,
+			CorrelationId: d.MessageId,
+			Body:          result,
+		})
+	if s.Debug {
+		Log(fmt.Sprintf("RPC Return: (%s)%s@%s->%s %s", d.MessageId, d.Type, s.AppName, d.ReplyTo, result), LogDebug)
+	}
+	if err != nil {
+		Log(fmt.Sprintf("Failed to reply Rpc Request: %s", err), LogError)
+	}
+	d.Ack(false)
 }

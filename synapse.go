@@ -167,7 +167,7 @@ func (s *Server) checkAndCreateExchange() {
 生成随机字符串
  */
 func (s *Server) randomString(l int) string {
-	str := "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	str := "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	bytes := []byte(str)
 	result := []byte{}
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
