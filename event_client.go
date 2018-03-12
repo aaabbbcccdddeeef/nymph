@@ -9,12 +9,15 @@ import (
 /**
 发送一个事件
  */
+func (s *Server) eventClient() {
+	s.eventClientChannel = s.CreateChannel(0, "EventClient")
+}
 func (s *Server) SendEvent(eventName string, params map[string]interface{}) {
 	if s.DisableEventClient {
 		Log("Event Client Disabled: DisableEventClient set true", LogError)
 	} else {
 		query, _ := json.Marshal(params);
-		s.mqch.Publish(
+		s.eventClientChannel.Publish(
 			s.SysName,                                        // exchange
 			fmt.Sprintf("event.%s.%s", s.AppName, eventName), // routing key
 			false,                                            // mandatory

@@ -22,15 +22,17 @@ type Server struct {
 	MqUser             string
 	MqPass             string
 	MqVHost            string
-	ProcessNum         int
+	EventProcessNum    int
+	RpcProcessNum      int
 	EventCallback      map[string]func(*simplejson.Json, amqp.Delivery) bool
 	RpcCallback map[string]func(*simplejson.Json, amqp.Delivery) map[string]interface{}
 	RpcTimeout time.Duration
 
-	conn      *amqp.Connection
-	mqch      *amqp.Channel
-	cli       <-chan amqp.Delivery
-	cliResMap map[string]chan *simplejson.Json
+	conn               *amqp.Connection
+	eventClientChannel *amqp.Channel
+	rpcClientChannel   *amqp.Channel
+	cli                <-chan amqp.Delivery
+	cliResMap          map[string]chan *simplejson.Json
 }
 
 const LogInfo = "Info"
@@ -67,18 +69,21 @@ func (s *Server) Serve() {
 	} else {
 		Log("App Run Mode: Production", LogInfo)
 	}
-	if s.ProcessNum == 0 {
-		s.ProcessNum = 80
+	if s.EventProcessNum == 0 {
+		s.EventProcessNum = 20
+	}
+	if s.RpcProcessNum == 0 {
+		s.RpcProcessNum = 20
 	}
 	goto START
 START:
 	s.createConnection()
 	defer s.conn.Close()
-	s.createChannel()
 	time.Sleep(time.Second * 2)
 	s.checkAndCreateExchange()
 	if s.EventCallback != nil {
-		go s.eventServer()
+		eventChannel := s.eventQueue()
+		go s.eventServer(eventChannel)
 		for k, v := range s.EventCallback {
 			Log(fmt.Sprintf("*EVT: %s -> %s", k, runtime.FuncForPC(reflect.ValueOf(v).Pointer()).Name()), LogInfo)
 		}
@@ -86,7 +91,8 @@ START:
 		Log("Event Server Disabled: EventCallback not set", LogWarn)
 	}
 	if s.RpcCallback != nil {
-		go s.rpcServer()
+		serverChannel := s.serverQueue()
+		go s.rpcServer(serverChannel)
 		for k, v := range s.RpcCallback {
 			Log(fmt.Sprintf("*RPC: %s -> %s", k, runtime.FuncForPC(reflect.ValueOf(v).Pointer()).Name()), LogInfo)
 		}
@@ -96,11 +102,12 @@ START:
 	if s.DisableEventClient {
 		Log("Event Client Disabled: DisableEventClient set true", LogWarn)
 	} else {
+		s.eventClient()
 		Log("Event Client Ready", LogInfo)
 	}
 	if !s.DisableRpcClient {
 		s.cliResMap = make(map[string]chan *simplejson.Json)
-		s.rpcCallbackQueue()
+		s.clientQueue()
 		go s.rpcCallbackQueueListen()
 		if s.RpcTimeout == 0 {
 			s.RpcTimeout = 3
@@ -128,39 +135,43 @@ func (s *Server) createConnection() {
 /**
 创建到 Rabbit MQ 的通道
  */
-func (s *Server) createChannel() {
-	s.mqch, err = s.conn.Channel()
+func (s *Server) CreateChannel(processNum int, desc string) *amqp.Channel {
+	channel, err := s.conn.Channel()
 	if err != nil {
 		Log(fmt.Sprintf("Failed to open a channel: %s", err), LogError)
 	}
-	if s.ProcessNum > 0 {
-		s.mqch.Qos(
-			s.ProcessNum, // prefetch count
-			0,            // prefetch size
-			false,        // global
+	Log(fmt.Sprintf("%s Channel Created.", desc), LogInfo)
+	if processNum > 0 {
+		channel.Qos(
+			processNum, // prefetch count
+			0,          // prefetch size
+			false,      // global
 		)
+		Log(fmt.Sprintf("%s MaxProcessNum: %d", desc, processNum), LogInfo)
 	}
-	Log("RabbitMQ Channel Created.", LogInfo)
-	Log(fmt.Sprintf("Server MaxProcessNum: %d", s.ProcessNum), LogInfo)
+	return channel
 }
 
 /**
 注册通讯用的 MQ Exchange
  */
 func (s *Server) checkAndCreateExchange() {
-	err := s.mqch.ExchangeDeclare(
-		s.SysName, // name
-		"topic",   // type
-		true,      // durable
-		true,      // auto-deleted
-		false,     // internal
-		false,     // no-wait
-		nil,       // arguments
+	channel := s.CreateChannel(0, "Exchange")
+	err := channel.ExchangeDeclare(
+		s.SysName,          // name
+		amqp.ExchangeTopic, // type
+		true,               // durable
+		true,               // auto-deleted
+		false,              // internal
+		false,              // no-wait
+		nil,                // arguments
 	)
 	if err != nil {
 		Log(fmt.Sprintf("Failed to declare Exchange: %s", err), LogError)
 	}
 	Log("Register Exchange Successed.", LogInfo)
+	channel.Close()
+	Log("Exchange Channel Closed", LogInfo)
 }
 
 /**

@@ -10,8 +10,9 @@ import (
 /**
 绑定事件监听队列
  */
-func (s *Server) eventQueue() {
-	q, err := s.mqch.QueueDeclare(
+func (s *Server) eventQueue() *amqp.Channel {
+	channel := s.CreateChannel(s.EventProcessNum, "EventServer")
+	q, err := channel.QueueDeclare(
 		fmt.Sprintf("%s_%s_event", s.SysName, s.AppName), // name
 		true,                                             // durable
 		true,                                             // delete when usused
@@ -23,8 +24,8 @@ func (s *Server) eventQueue() {
 		Log(fmt.Sprintf("Failed to declare event queue: %s", err), LogError)
 	}
 
-	for k, _ := range s.EventCallback {
-		err = s.mqch.QueueBind(
+	for k := range s.EventCallback {
+		err = channel.QueueBind(
 			q.Name,     // queue name
 			"event."+k, // routing key
 			s.SysName,  // exchange
@@ -34,15 +35,15 @@ func (s *Server) eventQueue() {
 			Log(fmt.Sprintf("Failed to bind event queue: %s", k), LogError)
 		}
 	}
+	return channel
 }
 
 /**
 创建事件监听
 callback回调为监听到事件后的处理函数
  */
-func (s *Server) eventServer() {
-	s.eventQueue()
-	msgs, err := s.mqch.Consume(
+func (s *Server) eventServer(channel *amqp.Channel) {
+	msgs, err := channel.Consume(
 		fmt.Sprintf("%s_%s_event", s.SysName, s.AppName),             // queue
 		fmt.Sprintf("%s.%s.event.%s", s.SysName, s.AppName, s.AppId), // consumer
 		false,                                                        // auto-ack

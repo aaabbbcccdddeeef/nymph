@@ -11,8 +11,9 @@ import (
 /**
 绑定RPC Callback监听队列
  */
-func (s *Server) rpcCallbackQueue() {
-	q, err := s.mqch.QueueDeclare(
+func (s *Server) clientQueue() {
+	s.rpcClientChannel = s.CreateChannel(0, "RpcClient")
+	q, err := s.rpcClientChannel.QueueDeclare(
 		fmt.Sprintf("%s_%s_client_%s", s.SysName, s.AppName, s.AppId),
 		true,  // durable
 		true,  // delete when usused
@@ -23,7 +24,7 @@ func (s *Server) rpcCallbackQueue() {
 	if err != nil {
 		Log(fmt.Sprintf("Failed to declare rpcQueue: %s", err), LogError)
 	}
-	err = s.mqch.QueueBind(
+	err = s.rpcClientChannel.QueueBind(
 		q.Name,
 		fmt.Sprintf("client.%s.%s", s.AppName, s.AppId),
 		s.SysName,
@@ -38,7 +39,7 @@ func (s *Server) rpcCallbackQueue() {
 创建 Callback 队列监听
  */
 func (s *Server) rpcCallbackQueueListen() {
-	s.cli, err = s.mqch.Consume(
+	s.cli, err = s.rpcClientChannel.Consume(
 		fmt.Sprintf("%s_%s_client_%s", s.SysName, s.AppName, s.AppId), // queue
 		fmt.Sprintf("client.%s.%s", s.AppName, s.AppId),               // consumer
 		true,                                                          // auto-ack
@@ -50,7 +51,7 @@ func (s *Server) rpcCallbackQueueListen() {
 	if err != nil {
 		Log(fmt.Sprintf("Failed to register Rpc Callback consumer: %s", err), LogError)
 	}
-	Log(fmt.Sprintf("Rpc Client Timeout: %d", s.RpcTimeout), LogInfo)
+	Log(fmt.Sprintf("Rpc Client Timeout: %ds", s.RpcTimeout), LogInfo)
 	Log("Rpc Client Ready", LogInfo)
 }
 
@@ -59,7 +60,7 @@ RPC Clenit
  */
 func (s *Server) rpcClient(appName, action string, params map[string]interface{}, msgId string) {
 	query, _ := json.Marshal(params)
-	err = s.mqch.Publish(
+	err = s.rpcClientChannel.Publish(
 		s.SysName,         // exchange
 		"server."+appName, // routing key
 		false,             // mandatory
