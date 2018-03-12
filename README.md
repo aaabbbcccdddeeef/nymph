@@ -6,10 +6,6 @@
 
 > go get github.com/synapse-rpc/nymph
 
-> go get github.com/bitly/go-simplejson
-
-> go get github.com/streadway/amqp
-
 初始化方法:
 ```golang
     //创建一个服务实例
