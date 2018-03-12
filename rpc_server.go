@@ -2,9 +2,9 @@ package synapse
 
 import (
 	"github.com/streadway/amqp"
-	"log"
 	"github.com/bitly/go-simplejson"
-	"net/http"
+	"fmt"
+	"encoding/json"
 )
 
 /**
@@ -12,31 +12,25 @@ import (
  */
 func (s *Server) rpcQueue() {
 	q, err := s.mqch.QueueDeclare(
-		s.SysName + "_rpc_srv_" + s.AppName, // name
-		true, // durable
-		true, // delete when usused
-		false, // exclusive
-		false, // no-wait
-		nil, // arguments
+		fmt.Sprintf("%s_server_%s", s.SysName, s.AppName), // name
+		true,                                              // durable
+		true,                                              // delete when usused
+		false,                                             // exclusive
+		false,                                             // no-wait
+		nil,                                               // arguments
 	)
-	s.failOnError(err, "Failed to declare rpcQueue")
+	if err != nil {
+		Log(fmt.Sprintf("Failed to declare Rpc Queue: %s", err), LogError)
+	}
 
 	err = s.mqch.QueueBind(
 		q.Name,
-		"rpc.srv." + s.AppName,
+		fmt.Sprintf("server.%s", s.AppName),
 		s.SysName,
 		false,
 		nil)
-	s.failOnError(err, "Failed to Bind Rpc Exchange and Queue")
-}
-
-/**
-创建结果返回json包源
- */
-func (s *Server) makeRet(code int) map[string]interface{} {
-	return map[string]interface{}{
-		"code": code,
-		"message": http.StatusText(code),
+	if err != nil {
+		Log(fmt.Sprintf("Failed to Bind Rpc Exchange and Queue: %s", err), LogError)
 	}
 }
 
@@ -47,16 +41,17 @@ callback回调为监听到RPC请求后的处理函数
 func (s *Server) rpcServer() {
 	s.rpcQueue()
 	msgs, err := s.mqch.Consume(
-		s.SysName + "_rpc_srv_" + s.AppName, // queue
-		s.SysName + "." + s.AppName + ".rpc.srv." + s.AppId, // consumer
+		fmt.Sprintf("%s_server_%s", s.SysName, s.AppName), // queue
+		fmt.Sprintf("%s.%s.server.%s", s.SysName, s.AppName, s.AppId),
 		false, // auto-ack
 		false, // exclusive
 		false, // no-local
 		false, // no-wait
-		nil, // args
+		nil,   // args
 	)
-	s.failOnError(err, "Failed to register rpcServer consumer")
-	log.Print("[Synapse Info] Rpc Server Handler Listening")
+	if err != nil {
+		Log(fmt.Sprintf("Failed to register Rpc Server consumer: %s", err), LogError)
+	}
 	for d := range msgs {
 		go s.rpcHandler(d)
 	}
@@ -67,48 +62,33 @@ RPC请求处理器
  */
 func (s *Server) rpcHandler(d amqp.Delivery) {
 	query, _ := simplejson.NewJson(d.Body)
-	action := query.Get("action").MustString()
-	params := query.Get("params")
 	if s.Debug {
 		logData, _ := query.MarshalJSON()
-		log.Printf("[Synapse Debug] Receive Rpc Request: %s", logData)
+		Log(fmt.Sprintf("RPC Receive: (%s)%s->%s@%s %s", d.MessageId, d.ReplyTo, d.Type, s.AppName, logData), LogDebug)
 	}
-	var resultSource map[string]interface{}
-	result := s.makeRet(200)
-	callback, ok := s.RpcCallback[action]
+	callback, ok := s.RpcCallback[d.Type]
 	if ok {
-		resultSource = callback(params, d)
-
-	} else {
-		resultSource = map[string]interface{}{"code":404, "message": "The Rpc Action Not Found"}
+		result, _ := json.Marshal(callback(query, d))
+		reply := fmt.Sprintf("client.%s.%s", d.ReplyTo, d.AppId)
+		err = s.mqch.Publish(
+			s.SysName, // exchange
+			reply,     // routing key
+			false,     // mandatory
+			false,     // immediatec
+			amqp.Publishing{
+				AppId:         s.AppId,
+				MessageId:     s.randomString(20),
+				ReplyTo:       s.AppName,
+				Type:          d.Type,
+				CorrelationId: d.MessageId,
+				Body:          result,
+			})
+		if s.Debug {
+			Log(fmt.Sprintf("RPC Return: (%s)%s@%s->%s %s", d.MessageId, d.Type, s.AppName, d.ReplyTo, result), LogDebug)
+		}
+		if err != nil {
+			Log(fmt.Sprintf("Failed to reply Rpc Request: %s", err), LogError)
+		}
+		d.Ack(false)
 	}
-	_, haveMessage := resultSource["message"]
-	_, haveCode := resultSource["code"]
-	if !haveMessage && haveCode {
-		resultSource["message"] = http.StatusText(resultSource["code"].(int))
-	}
-	for k, v := range resultSource {
-		result[k] = v
-	}
-	response := simplejson.New();
-	response.Set("from", s.AppName + "." + s.AppId)
-	response.Set("to", query.Get("from").MustString())
-	response.Set("action", "reply-" + action)
-	response.Set("params", result)
-	resultJson, _ := response.MarshalJSON()
-	err = s.mqch.Publish(
-		s.SysName, // exchange
-		d.ReplyTo, // routing key
-		false, // mandatory
-		false, // immediatec
-		amqp.Publishing{
-			ContentType:   "application/json",
-			CorrelationId: d.CorrelationId,
-			Body:          []byte(resultJson),
-		})
-	s.failOnError(err, "Failed to reply Rpc Request")
-	if s.Debug {
-		log.Printf("[Synapse Debug] Reply Rpc Request: %s", resultJson)
-	}
-	d.Ack(false)
 }

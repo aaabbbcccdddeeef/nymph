@@ -2,8 +2,8 @@ package synapse
 
 import (
 	"github.com/streadway/amqp"
-	"log"
-	"github.com/bitly/go-simplejson"
+	"fmt"
+	"encoding/json"
 )
 
 /**
@@ -11,27 +11,23 @@ import (
  */
 func (s *Server) SendEvent(eventName string, params map[string]interface{}) {
 	if s.DisableEventClient {
-		log.Printf("[Synapse Error] %s: %s \n", "Event Send Not Success", "DisableEventClient set true")
+		Log("Event Client Disabled: DisableEventClient set true", LogError)
 	} else {
-		query := simplejson.New();
-		query.Set("from", s.AppName + "." + s.AppId)
-		query.Set("to", "event")
-		query.Set("action", eventName)
-		query.Set("params", params)
-		queryJSON, _ := query.MarshalJSON()
-		err := s.mqch.Publish(
-			s.SysName, // exchange
-			"event." + s.AppName + "." + eventName, // routing key
-			false, // mandatory
-			false, // immediate
+		query, _ := json.Marshal(params);
+		s.mqch.Publish(
+			s.SysName,                                        // exchange
+			fmt.Sprintf("event.%s.%s", s.AppName, eventName), // routing key
+			false,                                            // mandatory
+			false,                                            // immediate
 			amqp.Publishing{
-				ContentType: "application/json",
-				CorrelationId: s.randomString(20),
-				Body:        []byte(queryJSON),
+				MessageId: s.randomString(20),
+				AppId:     s.AppId,
+				ReplyTo:   s.AppName,
+				Type:      eventName,
+				Body:      query,
 			})
-		s.failOnError(err, "Failed to publish a event")
 		if s.Debug {
-			log.Printf("[Synapse Debug] Publish Event: %s.%s %s", s.AppName, eventName, queryJSON)
+			Log(fmt.Sprintf("Event Publish: %s@%s %s", eventName, s.AppName, query), LogDebug)
 		}
 
 	}

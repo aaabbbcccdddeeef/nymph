@@ -1,10 +1,10 @@
 package synapse
 
 import (
-	"log"
 	"github.com/bitly/go-simplejson"
 	"strings"
 	"github.com/streadway/amqp"
+	"fmt"
 )
 
 /**
@@ -12,23 +12,27 @@ import (
  */
 func (s *Server) eventQueue() {
 	q, err := s.mqch.QueueDeclare(
-		s.SysName + "_event_" + s.AppName, // name
-		true, // durable
-		false, // delete when usused
-		false, // exclusive
-		false, // no-wait
-		nil, // arguments
+		fmt.Sprintf("%s_event_%s", s.SysName, s.AppName), // name
+		true,                                             // durable
+		false,                                            // delete when usused
+		false,                                            // exclusive
+		false,                                            // no-wait
+		nil,                                              // arguments
 	)
-	s.failOnError(err, "Failed to declare event queue")
+	if err != nil {
+		Log(fmt.Sprintf("Failed to declare event queue: %s", err), LogError)
+	}
 
 	for k, _ := range s.EventCallback {
 		err = s.mqch.QueueBind(
-			q.Name, // queue name
-			"event." + k, // routing key
-			s.SysName, // exchange
+			q.Name,     // queue name
+			"event."+k, // routing key
+			s.SysName,  // exchange
 			false,
 			nil)
-		s.failOnError(err, "Failed to bind event queue: " + k)
+		if err != nil {
+			Log(fmt.Sprintf("Failed to bind event queue: %s", k), LogError)
+		}
 	}
 }
 
@@ -39,16 +43,17 @@ callback回调为监听到事件后的处理函数
 func (s *Server) eventServer() {
 	s.eventQueue()
 	msgs, err := s.mqch.Consume(
-		s.SysName + "_event_" + s.AppName, // queue
-		s.SysName + "." + s.AppName + ".event." + s.AppId, // consumer
-		false, // auto-ack
-		false, // exclusive
-		false, // no-local
-		false, // no-wait
-		nil, // args
+		fmt.Sprintf("%s_event_%s", s.SysName, s.AppName),             // queue
+		fmt.Sprintf("%s.%s.event.%s", s.SysName, s.AppName, s.AppId), // consumer
+		false,                                                        // auto-ack
+		false,                                                        // exclusive
+		false,                                                        // no-local
+		false,                                                        // no-wait
+		nil,                                                          // args
 	)
-	s.failOnError(err, "Failed to register event consumer")
-	log.Print("[Synapse Info] Event Server Handler Listening")
+	if err != nil {
+		Log(fmt.Sprintf("Failed to register event consumer: %s", err), LogError)
+	}
 	for d := range msgs {
 		go s.eventHandler(d)
 	}
@@ -59,18 +64,14 @@ func (s *Server) eventServer() {
  */
 func (s *Server) eventHandler(d amqp.Delivery) {
 	query, _ := simplejson.NewJson(d.Body)
-	params := query.Get("params")
-	if query.Get("to").MustString() == "event" {
-		if s.Debug {
-			logData, _ := query.MarshalJSON()
-			log.Printf("[Synapse Debug] Receive Event: %s.%s %s", query.Get("from").MustString(), query.Get("action").MustString(), logData)
-		}
-		log.Print(strings.Split(query.Get("from").MustString(), ".")[0] + "." + query.Get("action").MustString())
-		callback, ok := s.EventCallback[strings.Split(query.Get("from").MustString(), ".")[0] + "." + query.Get("action").MustString()]
-		if (ok && callback(params, d)) {
-			d.Ack(false)
-		} else {
-			d.Reject(true)
-		}
+	if s.Debug {
+		logData, _ := query.MarshalJSON()
+		Log(fmt.Sprintf("Event Receive: %s@%s %s", d.Type, d.ReplyTo, logData), LogDebug)
+	}
+	callback, ok := s.EventCallback[strings.Replace(d.RoutingKey, "event.", "", 1)]
+	if ok && callback(query, d) {
+		d.Ack(false)
+	} else {
+		d.Reject(true)
 	}
 }
