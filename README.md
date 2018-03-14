@@ -6,6 +6,10 @@
 
 > go get github.com/synapse-rpc/nymph
 
+Demo地址
+
+> https://github.com/synapse-rpc/nymph-test
+
 初始化方法:
 ```golang
     //创建一个服务实例
